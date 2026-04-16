@@ -1,65 +1,207 @@
-import Image from "next/image";
 
-export default function Home() {
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getMyOrganizationAndSubscription } from "../lib/account";
+import { isTrialExpired } from "../lib/trial";
+
+export default function HomePage() {
+  const router = useRouter();
+
+  const handleNewCreateClick = async () => {
+    try {
+      const { subscription } = await getMyOrganizationAndSubscription();
+
+      if (isTrialExpired(subscription)) {
+        alert("無料トライアルの上限に達しています。有料プランへ移行してください。");
+        router.push("/billing");
+        return;
+      }
+
+      router.push("/new");
+    } catch (e) {
+      console.error(e);
+      alert("利用状況の確認に失敗しました。");
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div
+      style={{
+        padding: 24,
+        maxWidth: 1100,
+        margin: "0 auto",
+        color: "var(--foreground)",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: 32,
+          fontWeight: 900,
+          margin: 0,
+          color: "var(--foreground)",
+        }}
+      >
+        ReaDoc
+      </h1>
+
+      <p
+        style={{
+          opacity: 0.8,
+          marginTop: 10,
+          marginBottom: 20,
+          color: "var(--muted)",
+        }}
+      >
+        調査ブック入力 → 重要事項説明書作成までを一気通貫で。
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 14,
+        }}
+      >
+        <CardButton
+          title="新規作成"
+          desc="モードを選んで新しい案件を作成します。"
+          button="新規作成へ"
+          onClick={handleNewCreateClick}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <CardLink
+          title="過去案件"
+          desc="保存済み一覧・入力・重要事項説明書ドラフト作成。"
+          href="/cases"
+          button="過去案件へ"
+        />
+        <CardLink
+          title="アカウント"
+          desc="ログイン中のメールアドレス確認やログアウトができます。"
+          href="/account"
+          button="アカウントへ"
+        />
+        <CardLink
+          title="設定"
+          desc="今後の表示設定やアプリ設定をここにまとめます。"
+          href="/settings"
+          button="設定へ"
+        />
+      </div>
+    </div>
+  );
+}
+
+function CardLink({
+  title,
+  desc,
+  href,
+  button,
+}: {
+  title: string;
+  desc: string;
+  href: string;
+  button: string;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 18,
+        padding: 16,
+        background: "var(--surface)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 900,
+          color: "var(--foreground)",
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 13,
+          color: "var(--muted)",
+        }}
+      >
+        {desc}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <Link
+          href={href}
+          className="button-base"
+          style={{
+            display: "inline-block",
+            textDecoration: "none",
+          }}
+        >
+          {button}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function CardButton({
+  title,
+  desc,
+  button,
+  onClick,
+}: {
+  title: string;
+  desc: string;
+  button: string;
+  onClick: () => void | Promise<void>;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 18,
+        padding: 16,
+        background: "var(--surface)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 900,
+          color: "var(--foreground)",
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 13,
+          color: "var(--muted)",
+        }}
+      >
+        {desc}
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <button
+          type="button"
+          onClick={onClick}
+          className="button-base"
+          style={{
+            display: "inline-block",
+            textDecoration: "none",
+          }}
+        >
+          {button}
+        </button>
+      </div>
     </div>
   );
 }
