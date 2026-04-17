@@ -24,8 +24,7 @@ export default function LoginPage() {
         alert("ログインに失敗しました: " + error.message);
         return;
       }
-
-      router.push("/account");
+      router.push("/dashboard");
     } finally {
       setLoading(false);
     }
