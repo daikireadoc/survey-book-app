@@ -83,22 +83,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
+  
       if (!user) {
         router.push("/login");
         return;
       }
-
+  
       router.push(href);
     } catch (e) {
       console.error(e);
       router.push("/login");
     }
   };
-
+  
   const navItems: NavItem[] = useMemo(
     () => [
-      { label: "ホーム", href: "/dashboard" },
+      { label: "ホーム", onClick: () => protectedPush("/dashboard") },
       { label: "新規作成", onClick: handleNewCreateClick },
       { label: "過去案件", onClick: () => protectedPush("/cases") },
       { label: "アカウント", onClick: () => protectedPush("/account") },
@@ -106,7 +106,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       { label: "プラン管理", onClick: () => protectedPush("/billing") },
       { label: "特定商取引法", href: "/legal" },
     ],
-    []
+    [handleNewCreateClick]
   );
 
   const isActive = (item: NavItem) => {
