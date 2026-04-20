@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { getMyOrganizationAndSubscription } from "../../lib/account";
 import { isTrialExpired } from "../../lib/trial";
+import { supabase } from "../../lib/supabaseClient";
 
 type NavItem = {
   label: string;
@@ -53,6 +54,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const handleNewCreateClick = async () => {
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
       const { subscription } = await getMyOrganizationAndSubscription();
 
       if (isTrialExpired(subscription)) {
@@ -64,20 +74,45 @@ export default function AppShell({ children }: { children: ReactNode }) {
       router.push("/new");
     } catch (e) {
       console.error(e);
-      alert("利用状況の確認に失敗しました。");
+      router.push("/login");
+    }
+  };
+
+  const protectedPush = async (href: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      router.push(href);
+    } catch (e) {
+      console.error(e);
+      router.push("/login");
     }
   };
 
   const navItems: NavItem[] = useMemo(
     () => [
-      { label: "ホーム", href: "/" },
+      { label: "ホーム", href: "/dashboard" },
       { label: "新規作成", onClick: handleNewCreateClick },
-      { label: "過去案件", href: "/cases" },
-      { label: "アカウント", href: "/account" },
-      { label: "設定", href: "/settings" },
+      { label: "過去案件", onClick: () => protectedPush("/cases") },
+      { label: "アカウント", onClick: () => protectedPush("/account") },
+      { label: "設定", onClick: () => protectedPush("/settings") },
+      { label: "プラン管理", onClick: () => protectedPush("/billing") },
+      { label: "特定商取引法", href: "/legal" },
     ],
     []
   );
+
+  const isActive = (item: NavItem) => {
+    if (!item.href) return false;
+    return pathname === item.href;
+  };
 
   return (
     <div
@@ -87,7 +122,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         color: "var(--foreground)",
       }}
     >
-      {/* ===== HEADER ===== */}
       <header
         style={{
           position: "sticky",
@@ -99,7 +133,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         }}
       >
         <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3">
-          {/* メニューボタン */}
           <button
             onClick={() => setOpen((v) => !v)}
             style={{
@@ -134,7 +167,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* ===== MENU ===== */}
       {open && (
         <div className="fixed inset-0 z-30">
           <button
@@ -157,7 +189,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="mb-4 flex items-center justify-between">
               <div className="text-lg font-bold">メニュー</div>
 
-              {/* 閉じるボタン */}
               <button
                 onClick={() => setOpen(false)}
                 style={{
@@ -182,58 +213,61 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            {/* メニュー項目 */}
             <nav className="grid gap-2">
               {navItems.map((item) => {
-                const active = item.href ? pathname === item.href : false;
+                const active = isActive(item);
 
-                return item.onClick ? (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={async () => {
-                      setOpen(false);
-                      await item.onClick?.();
-                    }}
-                    style={{
-                      width: "100%",
-                      borderRadius: 12,
-                      padding: "12px 16px",
-                      textDecoration: "none",
-                      transition: "0.2s",
-                      border: active
-                        ? "1px solid var(--foreground)"
-                        : "1px solid var(--border)",
-                      background: active
-                        ? "var(--foreground)"
-                        : "transparent",
-                      color: active
-                        ? "var(--background)"
-                        : "var(--foreground)",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      fontSize: 16,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) {
-                        e.currentTarget.style.background = "var(--foreground)";
-                        e.currentTarget.style.color = "var(--background)";
-                        e.currentTarget.style.border =
-                          "1px solid var(--foreground)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "var(--foreground)";
-                        e.currentTarget.style.border =
-                          "1px solid var(--border)";
-                      }
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ) : (
+                if (item.onClick) {
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={async () => {
+                        setOpen(false);
+                        await item.onClick?.();
+                      }}
+                      style={{
+                        width: "100%",
+                        borderRadius: 12,
+                        padding: "12px 16px",
+                        textDecoration: "none",
+                        transition: "0.2s",
+                        border: active
+                          ? "1px solid var(--foreground)"
+                          : "1px solid var(--border)",
+                        background: active
+                          ? "var(--foreground)"
+                          : "transparent",
+                        color: active
+                          ? "var(--background)"
+                          : "var(--foreground)",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        fontSize: 16,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!active) {
+                          e.currentTarget.style.background = "var(--foreground)";
+                          e.currentTarget.style.color = "var(--background)";
+                          e.currentTarget.style.border =
+                            "1px solid var(--foreground)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active) {
+                          e.currentTarget.style.background = "transparent";
+                          e.currentTarget.style.color = "var(--foreground)";
+                          e.currentTarget.style.border =
+                            "1px solid var(--border)";
+                        }
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                }
+
+                return (
                   <Link
                     key={item.href}
                     href={item.href ?? "#"}

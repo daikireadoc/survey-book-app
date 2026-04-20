@@ -1,19 +1,44 @@
+
 "use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { getMyOrganizationAndSubscription } from "../../lib/account";
 import { isTrialExpired } from "../../lib/trial";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function DashboardPage() {
   const router = useRouter();
 
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+      }
+    };
+
+    checkUser();
+  }, [router]);
+
   const handleNewCreateClick = async () => {
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
       const { subscription } = await getMyOrganizationAndSubscription();
 
       if (isTrialExpired(subscription)) {
-        alert("無料トライアルの上限に達しています。有料プランへ移行してください。");
         router.push("/billing");
         return;
       }
@@ -21,7 +46,7 @@ export default function DashboardPage() {
       router.push("/new");
     } catch (e) {
       console.error(e);
-      alert("利用状況の確認に失敗しました。");
+      router.push("/login");
     }
   };
 
@@ -34,7 +59,7 @@ export default function DashboardPage() {
         color: "var(--foreground)",
       }}
     >
-      <h1 style={{ fontSize: 32, fontWeight: 900 }}>ReaDoc</h1>
+      <h1 style={{ fontSize: 32, fontWeight: 900, margin: 0 }}>ReaDoc</h1>
 
       <p style={{ opacity: 0.8, marginTop: 10, marginBottom: 20 }}>
         調査ブック入力 → 重要事項説明書作成までを一気通貫で。
@@ -74,6 +99,15 @@ export default function DashboardPage() {
           href="/settings"
           button="設定へ"
         />
+
+        <div style={{ gridColumn: "1 / -1" }}>
+          <CardLink
+            title="プラン管理"
+            desc="現在の無料トライアル状況や有料プランを確認できます。"
+            href="/billing"
+            button="プランを見る"
+          />
+        </div>
       </div>
     </div>
   );
@@ -102,7 +136,14 @@ function CardLink({
       <div style={{ marginTop: 6, fontSize: 13 }}>{desc}</div>
 
       <div style={{ marginTop: 12 }}>
-        <Link href={href} className="button-base">
+        <Link
+          href={href}
+          className="button-base"
+          style={{
+            display: "inline-block",
+            textDecoration: "none",
+          }}
+        >
           {button}
         </Link>
       </div>
@@ -119,7 +160,7 @@ function CardButton({
   title: string;
   desc: string;
   button: string;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
 }) {
   return (
     <div

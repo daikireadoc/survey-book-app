@@ -15,7 +15,7 @@ export default function LegalPage() {
   
         <section style={{ display: "grid", gap: 20 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>事業者名</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700 }}>サービス名</h2>
             <p>ReaDoc</p>
           </div>
   
@@ -36,7 +36,7 @@ export default function LegalPage() {
   
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700 }}>メールアドレス</h2>
-            <p>your@email.com</p>
+            <p>daiki.readoc@gmail.com</p>
           </div>
   
           <div>

@@ -5,11 +5,12 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -28,7 +29,7 @@ export default function LoginPage() {
     checkUser();
   }, [router]);
 
-  const handleLogin = async () => {
+  const handleSignup = async () => {
     try {
       setMessage("");
       setErrorMessage("");
@@ -43,36 +44,49 @@ export default function LoginPage() {
         return;
       }
 
+      if (password.length < 6) {
+        setErrorMessage("パスワードは6文字以上で入力してください。");
+        return;
+      }
+
+      if (password !== passwordConfirm) {
+        setErrorMessage("確認用パスワードが一致していません。");
+        return;
+      }
+
       setLoading(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          emailRedirectTo: "https://survey-book-app.vercel.app/login",
+        },
       });
 
       if (error) {
-        if (error.message.includes("Email not confirmed")) {
-          setErrorMessage(
-            "メール認証が完了していません。確認メール内のリンクを開いてからログインしてください。"
-          );
-        } else if (
-          error.message.includes("Invalid login credentials") ||
-          error.message.includes("invalid_credentials")
+        if (
+          error.message.includes("User already registered") ||
+          error.message.includes("already been registered")
         ) {
           setErrorMessage(
-            "メールアドレスまたはパスワードが正しくありません。"
+            "このメールアドレスは既に登録されています。ログインしてください。"
           );
         } else {
-          setErrorMessage("ログインに失敗しました: " + error.message);
+          setErrorMessage("アカウント作成に失敗しました: " + error.message);
         }
         return;
       }
 
-      router.push("/dashboard");
+      setMessage(
+        "入力内容を受け付けました。未登録の場合は確認メールをご確認ください。すでに登録済の場合はログインをお試しください。"
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const showLoginShortcut = errorMessage.includes("既に登録");
 
   return (
     <div
@@ -96,14 +110,8 @@ export default function LoginPage() {
           gap: 16,
         }}
       >
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 900,
-            margin: 0,
-          }}
-        >
-          ログイン
+        <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>
+          アカウント作成
         </h1>
 
         {message && (
@@ -132,9 +140,21 @@ export default function LoginPage() {
               padding: "12px 14px",
               fontSize: 14,
               lineHeight: 1.6,
+              display: "grid",
+              gap: 10,
             }}
           >
-            {errorMessage}
+            <div>{errorMessage}</div>
+
+            {showLoginShortcut && (
+              <button
+                type="button"
+                onClick={() => router.push("/login")}
+                className="button-base"
+              >
+                ログインへ
+              </button>
+            )}
           </div>
         )}
 
@@ -171,7 +191,29 @@ export default function LoginPage() {
               setPassword(e.target.value);
               if (errorMessage) setErrorMessage("");
             }}
-            placeholder="password"
+            placeholder="6文字以上"
+            style={{
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid var(--border)",
+              background: "var(--surface-strong)",
+              color: "var(--foreground)",
+            }}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label style={{ fontSize: 13, color: "var(--muted)" }}>
+            パスワード（確認）
+          </label>
+          <input
+            type="password"
+            value={passwordConfirm}
+            onChange={(e) => {
+              setPasswordConfirm(e.target.value);
+              if (errorMessage) setErrorMessage("");
+            }}
+            placeholder="もう一度入力"
             style={{
               padding: "12px 14px",
               borderRadius: 12,
@@ -183,18 +225,18 @@ export default function LoginPage() {
         </div>
 
         <button
-          onClick={handleLogin}
+          onClick={handleSignup}
           disabled={loading}
           className="button-base"
         >
-          {loading ? "ログイン中..." : "ログインする"}
+          {loading ? "作成中..." : "アカウントを作成する"}
         </button>
 
         <button
-          onClick={() => router.push("/signup")}
+          onClick={() => router.push("/login")}
           className="button-base"
         >
-          アカウントを作成する
+          ログイン画面へ戻る
         </button>
       </div>
     </div>
