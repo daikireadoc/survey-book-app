@@ -7,6 +7,11 @@ import AuthGate from "./components/AuthGate";
 export const metadata: Metadata = {
   title: "ReaDoc",
   description: "重要事項説明書生成AI",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
