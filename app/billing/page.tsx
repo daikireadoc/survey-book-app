@@ -43,15 +43,69 @@ export default function BillingPage() {
     load();
   }, []);
 
-  const stripeLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || "";
+  const standardStripeLink =
+    "https://buy.stripe.com/bJe3cxealaEhcSq6w36Na00";
+  const corporateStripeLink =
+    "https://buy.stripe.com/3cIeVf4zLfYB05E6w36Na01";
 
   const isExpired =
     subscription &&
     subscription.plan_status === "trial" &&
-    (
-      subscription.trial_case_used >= subscription.trial_case_limit ||
-      Date.now() > new Date(subscription.trial_end_at).getTime()
-    );
+    (subscription.trial_case_used >= subscription.trial_case_limit ||
+      Date.now() > new Date(subscription.trial_end_at).getTime());
+
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 18,
+    border: "1px solid var(--border)",
+    background: "var(--surface)",
+    padding: 20,
+    display: "grid",
+    gap: 12,
+  };
+
+  const noteStyle: React.CSSProperties = {
+    borderRadius: 12,
+    border: "1px solid var(--border)",
+    background: "var(--surface-strong)",
+    padding: "12px 16px",
+    fontSize: 13,
+    color: "var(--muted)",
+    lineHeight: 1.7,
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    padding: "0 16px",
+    textDecoration: "none",
+    background: "var(--foreground)",
+    color: "var(--background)",
+    border: "1px solid var(--foreground)",
+    borderRadius: 12,
+    fontWeight: 700,
+    lineHeight: 1,
+    cursor: "pointer",
+    transition: "0.2s ease",
+  };
+
+  const secondaryButtonStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    padding: "0 16px",
+    textDecoration: "none",
+    background: "transparent",
+    color: "var(--foreground)",
+    border: "1px solid var(--border)",
+    borderRadius: 12,
+    fontWeight: 700,
+    lineHeight: 1,
+    cursor: "pointer",
+    transition: "0.2s ease",
+  };
 
   return (
     <div
@@ -63,9 +117,9 @@ export default function BillingPage() {
     >
       <div
         style={{
-          maxWidth: 900,
+          maxWidth: 960,
           margin: "0 auto",
-          padding: "32px 16px",
+          padding: "32px 16px 56px",
           display: "grid",
           gap: 16,
         }}
@@ -74,16 +128,7 @@ export default function BillingPage() {
           プラン管理
         </h1>
 
-        <div
-          style={{
-            borderRadius: 18,
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            padding: 20,
-            display: "grid",
-            gap: 12,
-          }}
-        >
+        <div style={cardStyle}>
           <div style={{ fontWeight: 800 }}>現在の利用状況</div>
           <div>
             現在プラン：
@@ -95,100 +140,142 @@ export default function BillingPage() {
           <div>残り案件数：{remainingCases}件</div>
         </div>
 
-        <div
-          style={{
-            borderRadius: 18,
-            border: "1px solid var(--border)",
-            background: "var(--surface)",
-            padding: 20,
-            display: "grid",
-            gap: 12,
-          }}
-        >
-          <div style={{ fontWeight: 800 }}>有料プラン</div>
-          <div>月額 30,000円</div>
-          <div>売買マンションモード利用可能</div>
-          <div>重要事項説明書の自動生成</div>
-          <div>入力データ保存</div>
-          <div>継続サポートあり</div>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800, fontSize: 20 }}>無料トライアル</div>
+          <div>最大30日間 または 3案件まで無料でご利用いただけます。</div>
 
           {isExpired ? (
-            <div
-              style={{
-                borderRadius: 12,
-                border: "1px solid var(--border)",
-                background: "var(--surface-strong)",
-                padding: "12px 16px",
-                fontSize: 13,
-                color: "var(--muted)",
-              }}
-            >
+            <div style={noteStyle}>
               無料トライアルは終了しています。継続利用には有料プランへの移行が必要です。
             </div>
           ) : (
-            <div
-              style={{
-                borderRadius: 12,
-                border: "1px solid var(--border)",
-                background: "var(--surface-strong)",
-                padding: "12px 16px",
-                fontSize: 13,
-                color: "var(--muted)",
-              }}
-            >
+            <div style={noteStyle}>
               トライアル期間中でも、こちらから有料プランへ移行できます。
             </div>
           )}
+        </div>
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 16,
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          }}
+        >
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 900, fontSize: 22 }}>
+              スタンダードプラン
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥30,000</div>
+            <div style={{ color: "var(--muted)", fontSize: 14 }}>
+              初めての導入におすすめ
+            </div>
+
+            <div style={{ display: "grid", gap: 8, lineHeight: 1.8 }}>
+              <div>・売買マンションモード利用可能</div>
+              <div>・重要事項説明書の自動生成</div>
+              <div>・入力データ保存</div>
+              <div>・サポート対応あり</div>
+            </div>
+
+            <div style={noteStyle}>
+              〜5人規模の事業者様向けプランです。クレジットカード決済でそのままお申し込みいただけます。
+            </div>
+
             <a
-              href={stripeLink}
+              href={standardStripeLink}
               target="_blank"
               rel="noopener noreferrer"
               className="button-base"
-              style={{
-                display: "inline-block",
-                textDecoration: "none",
-                background: "var(--foreground)",
-                color: "var(--background)",
-                border: "1px solid var(--foreground)",
-                transition: "0.2s",
-              }}
+              style={primaryButtonStyle}
               onMouseEnter={(e) => {
                 e.currentTarget.style.opacity = "0.85";
+                e.currentTarget.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.opacity = "1";
+                e.currentTarget.style.transform = "translateY(0)";
               }}
             >
-              有料プランへ進む
+              スタンダードで始める
             </a>
+          </div>
 
-            <Link
-              href="/account"
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 900, fontSize: 22 }}>法人プラン</div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>
+              月額 ¥30,000〜
+            </div>
+            <div style={{ color: "var(--muted)", fontSize: 14 }}>
+              6人以上のご利用向け
+            </div>
+
+            <div style={{ display: "grid", gap: 8, lineHeight: 1.8 }}>
+              <div>・1モード ¥30,000（最大5ユーザーまで）</div>
+              <div>・6人目以降は 1ユーザーごとに ¥10,000 / 月</div>
+              <div>・継続的な機能アップデート</div>
+              <div>・優先サポートあり</div>
+            </div>
+
+            <div style={noteStyle}>
+              決済画面では、追加ユーザー数を調整できます。
+              <br />
+              5名様までは追加ユーザー数を「0」にしてください。
+              <br />
+              6名様以上の場合は、6人目以降の人数を入力してください。
+            </div>
+
+            <a
+              href={corporateStripeLink}
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-base"
-              style={{
-                display: "inline-block",
-                textDecoration: "none",
-                background: "transparent",
-                color: "var(--foreground)",
-                border: "1px solid var(--border)",
-                transition: "0.2s",
-              }}
+              style={primaryButtonStyle}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--foreground)";
-                e.currentTarget.style.color = "var(--background)";
-                e.currentTarget.style.border = "1px solid var(--foreground)";
+                e.currentTarget.style.opacity = "0.85";
+                e.currentTarget.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--foreground)";
-                e.currentTarget.style.border = "1px solid var(--border)";
+                e.currentTarget.style.opacity = "1";
+                e.currentTarget.style.transform = "translateY(0)";
               }}
             >
-              アカウントへ戻る
-            </Link>
+              法人プランで導入する
+            </a>
           </div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 800 }}>補足</div>
+          <div style={{ lineHeight: 1.9 }}>
+            <div>・すべて月額制（自動更新）</div>
+            <div>・クレジットカード決済対応</div>
+            <div>・いつでも解約可能（次回更新前まで）</div>
+            <div>・現在は正式リリース前のため特別価格でご案内しております</div>
+            <div>・今後、提供機能やサポート内容に応じて価格が変更となる可能性があります</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <Link
+            href="/account"
+            className="button-base"
+            style={secondaryButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--foreground)";
+              e.currentTarget.style.color = "var(--background)";
+              e.currentTarget.style.border = "1px solid var(--foreground)";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--foreground)";
+              e.currentTarget.style.border = "1px solid var(--border)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            アカウントへ戻る
+          </Link>
         </div>
       </div>
     </div>
