@@ -7,6 +7,7 @@ import AuthGate from "./components/AuthGate";
 export const metadata: Metadata = {
   title: "ReaDoc",
   description: "重要事項説明書生成AI",
+  manifest: "/manifest.json",
   icons: {
     icon: "/icon.png",
     shortcut: "/icon.png",
