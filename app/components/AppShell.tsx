@@ -64,7 +64,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       }
 
       const { subscription } = await getMyOrganizationAndSubscription();
-
+      console.log("🔥 subscription", subscription);
       if (isTrialExpired(subscription)) {
         alert("無料トライアルの上限に達しています。有料プランへ移行してください。");
         router.push("/billing");
