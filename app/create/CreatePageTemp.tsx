@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getMyOrganizationAndSubscription } from "../../lib/account";
@@ -1234,7 +1234,7 @@ export default function CreatePage() {
   const [loading, setLoading] = useState(false);
   const [draftMode, setDraftMode] = useState<ModeState | null>(null);
   const [savedRow, setSavedRow] = useState<SurveyBookRow | null>(null);
-
+  const didLoadDraftRef = useRef(false);
   const currentMode = useMemo<ModeState | null>(() => draftMode ?? null, [draftMode]);
 
   const isMansionSale =
@@ -1481,6 +1481,9 @@ export default function CreatePage() {
 /** 新規モード */
 useEffect(() => {
   if (editId) return;
+  if (didLoadDraftRef.current) return;
+
+  didLoadDraftRef.current = true;
 
   try {
     const rawDraft = localStorage.getItem(NEW_DRAFT_KEY);
@@ -1552,10 +1555,8 @@ useEffect(() => {
       setDraftMode(m);
     }
 
-    localStorage.removeItem(NEW_DRAFT_KEY);
-  } catch (e) {
+     } catch (e) {
     console.warn("draft/settings parse error", e);
-    localStorage.removeItem(NEW_DRAFT_KEY);
     router.replace("/new");
   }
 }, [router, editId]);
@@ -1621,8 +1622,12 @@ if (!editId && subscription.plan_status === "trial") {
   await incrementTrialCaseUsed(organizationId);
 }
 
-      alert(editId ? "更新できました！" : "保存できました！");
-      setSavedRow(data as SurveyBookRow);
+if (!editId) {
+  localStorage.removeItem(NEW_DRAFT_KEY);
+}
+
+alert(editId ? "更新できました！" : "保存できました！");
+setSavedRow(data as SurveyBookRow);
     } finally {
       setLoading(false);
     }

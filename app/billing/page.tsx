@@ -48,9 +48,23 @@ export default function BillingPage() {
   const corporateStripeLink =
     "https://buy.stripe.com/3cIeVf4zLfYB05E6w36Na01";
 
+  const isActive = subscription?.plan_status === "active";
+  const isStandard = subscription?.paid_plan_type === "standard";
+  const isCorporate = subscription?.paid_plan_type === "corporate";
+  const isDemo = subscription?.demo_mode === true;
+
+  const currentPlanLabel = isDemo
+    ? "デモアカウント"
+    : isActive
+    ? isCorporate
+      ? "法人プラン"
+      : "スタンダードプラン"
+    : "無料トライアル";
+
   const isExpired =
     subscription &&
     subscription.plan_status === "trial" &&
+    subscription.demo_mode !== true &&
     (subscription.trial_case_used >= subscription.trial_case_limit ||
       Date.now() > new Date(subscription.trial_end_at).getTime());
 
@@ -90,6 +104,12 @@ export default function BillingPage() {
     transition: "0.2s ease",
   };
 
+  const disabledButtonStyle: React.CSSProperties = {
+    ...primaryButtonStyle,
+    opacity: 0.45,
+    cursor: "not-allowed",
+  };
+
   const secondaryButtonStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -105,6 +125,16 @@ export default function BillingPage() {
     lineHeight: 1,
     cursor: "pointer",
     transition: "0.2s ease",
+  };
+
+  const handleHoverIn = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.opacity = "0.85";
+    e.currentTarget.style.transform = "translateY(-1px)";
+  };
+
+  const handleHoverOut = (e: React.MouseEvent<HTMLElement>) => {
+    e.currentTarget.style.opacity = "1";
+    e.currentTarget.style.transform = "translateY(0)";
   };
 
   return (
@@ -130,14 +160,26 @@ export default function BillingPage() {
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800 }}>現在の利用状況</div>
-          <div>
-            現在プラン：
-            {subscription?.plan_status === "active"
-              ? "有料プラン"
-              : "無料トライアル"}
-          </div>
-          <div>残り日数：{remainingDays}日</div>
-          <div>残り案件数：{remainingCases}件</div>
+          <div>現在プラン：{currentPlanLabel}</div>
+
+          {!isActive && !isDemo && (
+            <>
+              <div>残り日数：{remainingDays}日</div>
+              <div>残り案件数：{remainingCases}件</div>
+            </>
+          )}
+
+          {isActive && (
+            <div style={noteStyle}>
+              現在、有料プランが有効です。トライアル制限なくご利用いただけます。
+            </div>
+          )}
+
+          {isDemo && (
+            <div style={noteStyle}>
+              デモアカウントのため、トライアル期限・案件数制限なくご利用いただけます。
+            </div>
+          )}
         </div>
 
         <div style={cardStyle}>
@@ -182,30 +224,28 @@ export default function BillingPage() {
               〜5人規模の事業者様向けプランです。クレジットカード決済でそのままお申し込みいただけます。
             </div>
 
-            <a
-              href={standardStripeLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="button-base"
-              style={primaryButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = "0.85";
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = "1";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
-            >
-              スタンダードで始める
-            </a>
+            {isActive && isStandard ? (
+              <button disabled className="button-base" style={disabledButtonStyle}>
+                現在利用中
+              </button>
+            ) : (
+              <a
+                href={standardStripeLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button-base"
+                style={primaryButtonStyle}
+                onMouseEnter={handleHoverIn}
+                onMouseLeave={handleHoverOut}
+              >
+                スタンダードで始める
+              </a>
+            )}
           </div>
 
           <div style={cardStyle}>
             <div style={{ fontWeight: 900, fontSize: 22 }}>法人プラン</div>
-            <div style={{ fontSize: 24, fontWeight: 900 }}>
-              月額 ¥30,000〜
-            </div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥30,000〜</div>
             <div style={{ color: "var(--muted)", fontSize: 14 }}>
               6人以上のご利用向け
             </div>
@@ -225,23 +265,33 @@ export default function BillingPage() {
               6名様以上の場合は、6人目以降の人数を入力してください。
             </div>
 
-            <a
-              href={corporateStripeLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="button-base"
-              style={primaryButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = "0.85";
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = "1";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
-            >
-              法人プランで導入する
-            </a>
+            {isActive && isCorporate ? (
+              <button
+                className="button-base"
+                style={primaryButtonStyle}
+                onClick={() => {
+                  alert(
+                    "人数追加機能は現在準備中です。追加をご希望の場合は個別にご連絡ください。"
+                  );
+                }}
+                onMouseEnter={handleHoverIn}
+                onMouseLeave={handleHoverOut}
+              >
+                人数を追加する
+              </button>
+            ) : (
+              <a
+                href={corporateStripeLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button-base"
+                style={primaryButtonStyle}
+                onMouseEnter={handleHoverIn}
+                onMouseLeave={handleHoverOut}
+              >
+                法人プランで導入する
+              </a>
+            )}
           </div>
         </div>
 
@@ -251,8 +301,12 @@ export default function BillingPage() {
             <div>・すべて月額制（自動更新）</div>
             <div>・クレジットカード決済対応</div>
             <div>・いつでも解約可能（次回更新前まで）</div>
-            <div>・現在は正式リリース前のため特別価格でご案内しております</div>
-            <div>・今後、提供機能やサポート内容に応じて価格が変更となる可能性があります</div>
+            <div>
+              ・現在は正式リリース前のため特別価格でご案内しております
+            </div>
+            <div>
+              ・今後、提供機能やサポート内容に応じて価格が変更となる可能性があります
+            </div>
           </div>
         </div>
 
