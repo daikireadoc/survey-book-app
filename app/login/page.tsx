@@ -21,6 +21,8 @@ export default function LoginPage() {
       } = await supabase.auth.getUser();
 
       if (user) {
+        document.cookie = `user_email=${user.email}; path=/`;
+        document.cookie = `user_id=${user.id}; path=/`;
         router.replace("/dashboard");
       }
     };
@@ -45,7 +47,7 @@ export default function LoginPage() {
 
       setLoading(true);
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
@@ -59,14 +61,22 @@ export default function LoginPage() {
           error.message.includes("Invalid login credentials") ||
           error.message.includes("invalid_credentials")
         ) {
-          setErrorMessage(
-            "メールアドレスまたはパスワードが正しくありません。"
-          );
+          setErrorMessage("メールアドレスまたはパスワードが正しくありません。");
         } else {
           setErrorMessage("ログインに失敗しました: " + error.message);
         }
         return;
       }
+
+      const user = data.user;
+
+      if (!user) {
+        setErrorMessage("ログイン情報の取得に失敗しました。");
+        return;
+      }
+
+      document.cookie = `user_email=${user.email}; path=/`;
+      document.cookie = `user_id=${user.id}; path=/`;
 
       router.push("/dashboard");
     } finally {
@@ -96,13 +106,7 @@ export default function LoginPage() {
           gap: 16,
         }}
       >
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 900,
-            margin: 0,
-          }}
-        >
+        <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>
           ログイン
         </h1>
 
@@ -182,18 +186,11 @@ export default function LoginPage() {
           />
         </div>
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="button-base"
-        >
+        <button onClick={handleLogin} disabled={loading} className="button-base">
           {loading ? "ログイン中..." : "ログインする"}
         </button>
 
-        <button
-          onClick={() => router.push("/signup")}
-          className="button-base"
-        >
+        <button onClick={() => router.push("/signup")} className="button-base">
           アカウントを作成する
         </button>
       </div>

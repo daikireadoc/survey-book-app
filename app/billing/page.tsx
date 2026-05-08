@@ -6,14 +6,18 @@ import { useEffect, useState } from "react";
 import { getMyOrganizationAndSubscription } from "../../lib/account";
 
 export default function BillingPage() {
+  const [userId, setUserId] = useState<string>("");
   const [subscription, setSubscription] = useState<any>(null);
   const [remainingDays, setRemainingDays] = useState<number>(0);
   const [remainingCases, setRemainingCases] = useState<number>(0);
+  const [canceling, setCanceling] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const { subscription } = await getMyOrganizationAndSubscription();
+        const { user, subscription } = await getMyOrganizationAndSubscription();
+
+        setUserId(user.id);
         setSubscription(subscription);
 
         const end = subscription?.trial_end_at
@@ -22,19 +26,17 @@ export default function BillingPage() {
 
         const now = Date.now();
 
-        const days = Math.max(
-          0,
-          Math.ceil((end - now) / (1000 * 60 * 60 * 24))
+        setRemainingDays(
+          Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)))
         );
 
-        const cases = Math.max(
-          0,
-          (subscription?.trial_case_limit ?? 0) -
-            (subscription?.trial_case_used ?? 0)
+        setRemainingCases(
+          Math.max(
+            0,
+            (subscription?.trial_case_limit ?? 0) -
+              (subscription?.trial_case_used ?? 0)
+          )
         );
-
-        setRemainingDays(days);
-        setRemainingCases(cases);
       } catch (e) {
         console.error(e);
       }
@@ -43,18 +45,61 @@ export default function BillingPage() {
     load();
   }, []);
 
+  const handleCancel = async () => {
+    if (!userId) {
+      alert("ユーザー情報を取得できませんでした。再ログインしてください。");
+      return;
+    }
+
+    const ok = confirm(
+      "本当に解約しますか？解約するとアプリを利用できなくなります。"
+    );
+
+    if (!ok) return;
+
+    try {
+      setCanceling(true);
+
+      const res = await fetch("/api/stripe/cancel-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        console.error(data);
+        alert("解約に失敗しました。時間を置いて再度お試しください。");
+        return;
+      }
+
+      alert("解約しました。");
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      alert("解約処理中にエラーが発生しました。");
+    } finally {
+      setCanceling(false);
+    }
+  };
+
   const standardStripeLink =
     "https://buy.stripe.com/bJe3cxealaEhcSq6w36Na00";
   const corporateStripeLink =
     "https://buy.stripe.com/3cIeVf4zLfYB05E6w36Na01";
 
   const isActive = subscription?.plan_status === "active";
+  const isCanceled = subscription?.plan_status === "canceled";
   const isStandard = subscription?.paid_plan_type === "standard";
   const isCorporate = subscription?.paid_plan_type === "corporate";
   const isDemo = subscription?.demo_mode === true;
 
   const currentPlanLabel = isDemo
     ? "デモアカウント"
+    : isCanceled
+    ? "解約済み"
     : isActive
     ? isCorporate
       ? "法人プラン"
@@ -104,6 +149,13 @@ export default function BillingPage() {
     transition: "0.2s ease",
   };
 
+  const dangerButtonStyle: React.CSSProperties = {
+    ...primaryButtonStyle,
+    background: "#dc2626",
+    color: "#fff",
+    border: "1px solid #dc2626",
+  };
+
   const disabledButtonStyle: React.CSSProperties = {
     ...primaryButtonStyle,
     opacity: 0.45,
@@ -138,31 +190,15 @@ export default function BillingPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--background)",
-        color: "var(--foreground)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 960,
-          margin: "0 auto",
-          padding: "32px 16px 56px",
-          display: "grid",
-          gap: 16,
-        }}
-      >
-        <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>
-          プラン管理
-        </h1>
+    <div style={{ minHeight: "100vh", background: "var(--background)", color: "var(--foreground)" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 16px 56px", display: "grid", gap: 16 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>プラン管理</h1>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800 }}>現在の利用状況</div>
           <div>現在プラン：{currentPlanLabel}</div>
 
-          {!isActive && !isDemo && (
+          {!isActive && !isDemo && !isCanceled && (
             <>
               <div>残り日数：{remainingDays}日</div>
               <div>残り案件数：{remainingCases}件</div>
@@ -172,6 +208,12 @@ export default function BillingPage() {
           {isActive && (
             <div style={noteStyle}>
               現在、有料プランが有効です。トライアル制限なくご利用いただけます。
+            </div>
+          )}
+
+          {isCanceled && (
+            <div style={noteStyle}>
+              解約済みです。再度利用するには有料プランへお申し込みください。
             </div>
           )}
 
@@ -197,21 +239,11 @@ export default function BillingPage() {
           )}
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          }}
-        >
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
           <div style={cardStyle}>
-            <div style={{ fontWeight: 900, fontSize: 22 }}>
-              スタンダードプラン
-            </div>
+            <div style={{ fontWeight: 900, fontSize: 22 }}>スタンダードプラン</div>
             <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥30,000</div>
-            <div style={{ color: "var(--muted)", fontSize: 14 }}>
-              初めての導入におすすめ
-            </div>
+            <div style={{ color: "var(--muted)", fontSize: 14 }}>初めての導入におすすめ</div>
 
             <div style={{ display: "grid", gap: 8, lineHeight: 1.8 }}>
               <div>・売買マンションモード利用可能</div>
@@ -229,15 +261,7 @@ export default function BillingPage() {
                 現在利用中
               </button>
             ) : (
-              <a
-                href={standardStripeLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button-base"
-                style={primaryButtonStyle}
-                onMouseEnter={handleHoverIn}
-                onMouseLeave={handleHoverOut}
-              >
+              <a href={standardStripeLink} target="_blank" rel="noopener noreferrer" className="button-base" style={primaryButtonStyle} onMouseEnter={handleHoverIn} onMouseLeave={handleHoverOut}>
                 スタンダードで始める
               </a>
             )}
@@ -246,9 +270,7 @@ export default function BillingPage() {
           <div style={cardStyle}>
             <div style={{ fontWeight: 900, fontSize: 22 }}>法人プラン</div>
             <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥30,000〜</div>
-            <div style={{ color: "var(--muted)", fontSize: 14 }}>
-              6人以上のご利用向け
-            </div>
+            <div style={{ color: "var(--muted)", fontSize: 14 }}>6人以上のご利用向け</div>
 
             <div style={{ display: "grid", gap: 8, lineHeight: 1.8 }}>
               <div>・1モード ¥30,000（最大5ユーザーまで）</div>
@@ -266,34 +288,34 @@ export default function BillingPage() {
             </div>
 
             {isActive && isCorporate ? (
-              <button
-                className="button-base"
-                style={primaryButtonStyle}
-                onClick={() => {
-                  alert(
-                    "人数追加機能は現在準備中です。追加をご希望の場合は個別にご連絡ください。"
-                  );
-                }}
-                onMouseEnter={handleHoverIn}
-                onMouseLeave={handleHoverOut}
-              >
+              <button className="button-base" style={primaryButtonStyle} onClick={() => alert("人数追加機能は現在準備中です。")} onMouseEnter={handleHoverIn} onMouseLeave={handleHoverOut}>
                 人数を追加する
               </button>
             ) : (
-              <a
-                href={corporateStripeLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="button-base"
-                style={primaryButtonStyle}
-                onMouseEnter={handleHoverIn}
-                onMouseLeave={handleHoverOut}
-              >
+              <a href={corporateStripeLink} target="_blank" rel="noopener noreferrer" className="button-base" style={primaryButtonStyle} onMouseEnter={handleHoverIn} onMouseLeave={handleHoverOut}>
                 法人プランで導入する
               </a>
             )}
           </div>
         </div>
+
+        {isActive && !isDemo && (
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 800, color: "#dc2626" }}>解約</div>
+            <div style={noteStyle}>
+              解約するとStripe側のサブスクリプションを停止し、アプリを利用できなくなります。
+            </div>
+            <button
+              type="button"
+              className="button-base"
+              style={dangerButtonStyle}
+              onClick={handleCancel}
+              disabled={canceling}
+            >
+              {canceling ? "解約処理中..." : "解約する"}
+            </button>
+          </div>
+        )}
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 800 }}>補足</div>
@@ -301,35 +323,31 @@ export default function BillingPage() {
             <div>・すべて月額制（自動更新）</div>
             <div>・クレジットカード決済対応</div>
             <div>・いつでも解約可能（次回更新前まで）</div>
-            <div>
-              ・現在は正式リリース前のため特別価格でご案内しております
-            </div>
-            <div>
-              ・今後、提供機能やサポート内容に応じて価格が変更となる可能性があります
-            </div>
+            <div>・現在は正式リリース前のため特別価格でご案内しております</div>
+            <div>・今後、提供機能やサポート内容に応じて価格が変更となる可能性があります</div>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link
-            href="/account"
-            className="button-base"
-            style={secondaryButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--foreground)";
-              e.currentTarget.style.color = "var(--background)";
-              e.currentTarget.style.border = "1px solid var(--foreground)";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--foreground)";
-              e.currentTarget.style.border = "1px solid var(--border)";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
-          >
-            アカウントへ戻る
-          </Link>
+        <Link
+  href="/account"
+  className="button-base"
+  style={secondaryButtonStyle}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.background = "var(--foreground)";
+    e.currentTarget.style.color = "var(--background)";
+    e.currentTarget.style.border = "1px solid var(--foreground)";
+    e.currentTarget.style.transform = "translateY(-1px)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.color = "var(--foreground)";
+    e.currentTarget.style.border = "1px solid var(--border)";
+    e.currentTarget.style.transform = "translateY(0)";
+  }}
+>
+  アカウントへ戻る
+</Link>
         </div>
       </div>
     </div>
