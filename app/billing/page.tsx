@@ -86,9 +86,9 @@ export default function BillingPage() {
   };
 
   const standardStripeLink =
-    "https://buy.stripe.com/bJe3cxealaEhcSq6w36Na00";
+    "https://buy.stripe.com/aFacN79U527Lf0ybQn6Na04";
   const corporateStripeLink =
-    "https://buy.stripe.com/3cIeVf4zLfYB05E6w36Na01";
+    "https://buy.stripe.com/4gMdRb5DP5jXf0y2fN6Na03";
 
   const isActive = subscription?.plan_status === "active";
   const isCanceled = subscription?.plan_status === "canceled";
@@ -151,9 +151,6 @@ export default function BillingPage() {
 
   const dangerButtonStyle: React.CSSProperties = {
     ...primaryButtonStyle,
-    background: "#dc2626",
-    color: "#fff",
-    border: "1px solid #dc2626",
   };
 
   const disabledButtonStyle: React.CSSProperties = {
@@ -242,7 +239,7 @@ export default function BillingPage() {
         <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
           <div style={cardStyle}>
             <div style={{ fontWeight: 900, fontSize: 22 }}>スタンダードプラン</div>
-            <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥30,000</div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥40,000</div>
             <div style={{ color: "var(--muted)", fontSize: 14 }}>初めての導入におすすめ</div>
 
             <div style={{ display: "grid", gap: 8, lineHeight: 1.8 }}>
@@ -269,12 +266,12 @@ export default function BillingPage() {
 
           <div style={cardStyle}>
             <div style={{ fontWeight: 900, fontSize: 22 }}>法人プラン</div>
-            <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥30,000〜</div>
+            <div style={{ fontSize: 24, fontWeight: 900 }}>月額 ¥50,000〜</div>
             <div style={{ color: "var(--muted)", fontSize: 14 }}>6人以上のご利用向け</div>
 
             <div style={{ display: "grid", gap: 8, lineHeight: 1.8 }}>
-              <div>・1モード ¥30,000（最大5ユーザーまで）</div>
-              <div>・6人目以降は 1ユーザーごとに ¥10,000 / 月</div>
+              <div>・1モード ¥50,000（最大6ユーザーまで）</div>
+              <div>・7人目以降は 1ユーザーごとに ¥10,000 / 月</div>
               <div>・継続的な機能アップデート</div>
               <div>・優先サポートあり</div>
             </div>
@@ -282,9 +279,9 @@ export default function BillingPage() {
             <div style={noteStyle}>
               決済画面では、追加ユーザー数を調整できます。
               <br />
-              5名様までは追加ユーザー数を「0」にしてください。
+              6名様までは追加ユーザー数を「0」にしてください。
               <br />
-              6名様以上の場合は、6人目以降の人数を入力してください。
+              7名様以上の場合は、7人目以降の人数を入力してください。
             </div>
 
             {isActive && isCorporate ? (
@@ -301,7 +298,9 @@ export default function BillingPage() {
 
         {isActive && !isDemo && (
           <div style={cardStyle}>
-            <div style={{ fontWeight: 800, color: "#dc2626" }}>解約</div>
+<div style={{ fontWeight: 800 }}>
+  解約
+</div>
             <div style={noteStyle}>
               解約するとStripe側のサブスクリプションを停止し、アプリを利用できなくなります。
             </div>

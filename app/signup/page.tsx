@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabaseClient";
 export default function SignupPage() {
   const router = useRouter();
 
+  const [companyCode, setCompanyCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -29,12 +30,33 @@ export default function SignupPage() {
     checkUser();
   }, [router]);
 
+  const inputStyle: React.CSSProperties = {
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid var(--border)",
+    background: "var(--surface-strong)",
+    color: "var(--foreground)",
+  };
+
   const handleSignup = async () => {
     try {
       setMessage("");
       setErrorMessage("");
 
-      if (!email.trim()) {
+      const normalizedCompanyCode = companyCode.trim().toLowerCase();
+      const normalizedEmail = email.trim();
+
+      if (!normalizedCompanyCode) {
+        setErrorMessage("会社IDを入力してください。");
+        return;
+      }
+
+      if (!/^[a-z0-9]{3,12}$/.test(normalizedCompanyCode)) {
+        setErrorMessage("会社IDは半角英数字のみ・3〜12文字で入力してください。");
+        return;
+      }
+
+      if (!normalizedEmail) {
         setErrorMessage("メールアドレスを入力してください。");
         return;
       }
@@ -56,8 +78,67 @@ export default function SignupPage() {
 
       setLoading(true);
 
-      const { error } = await supabase.auth.signUp({
-        email: email.trim(),
+      const { data: organization, error: organizationError } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("company_code", normalizedCompanyCode)
+        .single();
+
+      if (organizationError || !organization) {
+        setErrorMessage("会社IDが存在しません。");
+        return;
+      }
+
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("organization_id", organization.id)
+        .single();
+
+      if (subscriptionError || !subscription) {
+        setErrorMessage("この会社の契約情報が見つかりません。");
+        return;
+      }
+
+      const now = new Date();
+      const isDemo = subscription.demo_mode === true;
+
+      const isTrialValid =
+        subscription.plan_status === "trial" &&
+        subscription.trial_end_at &&
+        new Date(subscription.trial_end_at) > now &&
+        subscription.trial_case_used < subscription.trial_case_limit;
+
+      const isActive = subscription.plan_status === "active";
+
+      if (!isDemo && !isTrialValid && !isActive) {
+        setErrorMessage(
+          "この会社は現在利用できません。無料トライアルまたは契約期間が終了しています。"
+        );
+        return;
+      }
+
+      const { count, error: countError } = await supabase
+        .from("organization_members")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", organization.id);
+
+      if (countError) {
+        setErrorMessage("利用人数の確認に失敗しました。");
+        return;
+      }
+
+      const maxUsers = subscription.max_users ?? 5;
+
+      if (!isDemo && count !== null && count >= maxUsers) {
+        setErrorMessage(
+          "この会社は契約人数の上限に達しています。管理者にお問い合わせください。"
+        );
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: "https://survey-book-app.vercel.app/login",
@@ -78,8 +159,31 @@ export default function SignupPage() {
         return;
       }
 
+      const user = data.user;
+
+      if (user) {
+        const { error: memberError } = await supabase
+          .from("organization_members")
+          .insert({
+            organization_id: organization.id,
+            user_id: user.id,
+            role: "member",
+          });
+
+        if (memberError) {
+          console.error(memberError);
+          setErrorMessage(
+            "アカウントは作成されましたが、会社への紐付けに失敗しました。管理者にお問い合わせください。"
+          );
+          return;
+        }
+
+        document.cookie = `user_email=${user.email}; path=/`;
+        document.cookie = `user_id=${user.id}; path=/`;
+      }
+
       setMessage(
-        "入力内容を受け付けました。未登録の場合は確認メールをご確認ください。すでに登録済の場合はログインをお試しください。"
+        "アカウント作成を受け付けました。確認メールが届いている場合は、メール内のリンクを開いてからログインしてください。"
       );
     } finally {
       setLoading(false);
@@ -160,6 +264,22 @@ export default function SignupPage() {
 
         <div style={{ display: "grid", gap: 6 }}>
           <label style={{ fontSize: 13, color: "var(--muted)" }}>
+            会社ID
+          </label>
+          <input
+            value={companyCode}
+            onChange={(e) => {
+              setCompanyCode(e.target.value.toLowerCase());
+              if (errorMessage) setErrorMessage("");
+            }}
+            placeholder="半角英数字のみ・3〜12文字"
+            maxLength={12}
+            style={inputStyle}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label style={{ fontSize: 13, color: "var(--muted)" }}>
             メールアドレス
           </label>
           <input
@@ -170,13 +290,7 @@ export default function SignupPage() {
               if (errorMessage) setErrorMessage("");
             }}
             placeholder="test@example.com"
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "var(--surface-strong)",
-              color: "var(--foreground)",
-            }}
+            style={inputStyle}
           />
         </div>
 
@@ -192,13 +306,7 @@ export default function SignupPage() {
               if (errorMessage) setErrorMessage("");
             }}
             placeholder="6文字以上"
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "var(--surface-strong)",
-              color: "var(--foreground)",
-            }}
+            style={inputStyle}
           />
         </div>
 
@@ -214,13 +322,7 @@ export default function SignupPage() {
               if (errorMessage) setErrorMessage("");
             }}
             placeholder="もう一度入力"
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "var(--surface-strong)",
-              color: "var(--foreground)",
-            }}
+            style={inputStyle}
           />
         </div>
 
@@ -232,10 +334,7 @@ export default function SignupPage() {
           {loading ? "作成中..." : "アカウントを作成する"}
         </button>
 
-        <button
-          onClick={() => router.push("/login")}
-          className="button-base"
-        >
+        <button onClick={() => router.push("/login")} className="button-base">
           ログイン画面へ戻る
         </button>
       </div>

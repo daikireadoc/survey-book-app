@@ -8,6 +8,8 @@ export async function middleware(req: NextRequest) {
   if (
     url.pathname.startsWith("/billing") ||
     url.pathname.startsWith("/login") ||
+    url.pathname.startsWith("/signup") ||
+    url.pathname.startsWith("/legal") ||
     url.pathname.startsWith("/api") ||
     url.pathname.startsWith("/_next")
   ) {
@@ -17,7 +19,6 @@ export async function middleware(req: NextRequest) {
   const userEmail = req.cookies.get("user_email")?.value;
   const userId = req.cookies.get("user_id")?.value;
 
-  // デモアカウント
   if (userEmail === "dahuihouteng145@gmail.com") {
     return NextResponse.next();
   }
@@ -27,20 +28,42 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${userId}&select=*`,
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+    const memberRes = await fetch(
+      `${baseUrl}/rest/v1/organization_members?user_id=eq.${userId}&select=organization_id`,
       {
         headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
         },
       }
     );
 
-    const data = await res.json();
-    const sub = data?.[0];
+    const members = await memberRes.json();
+    const organizationId = members?.[0]?.organization_id;
+
+    if (!organizationId) {
+      return NextResponse.redirect(new URL("/billing", req.url));
+    }
+
+    const subRes = await fetch(
+      `${baseUrl}/rest/v1/subscriptions?organization_id=eq.${organizationId}&select=*`,
+      {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+      }
+    );
+
+    const subs = await subRes.json();
+    const sub = subs?.[0];
 
     const now = new Date();
+
+    const isDemo = sub?.demo_mode === true;
 
     const isTrialValid =
       sub?.plan_status === "trial" &&
@@ -50,7 +73,7 @@ export async function middleware(req: NextRequest) {
 
     const isActive = sub?.plan_status === "active";
 
-    if (!isTrialValid && !isActive) {
+    if (!isDemo && !isTrialValid && !isActive) {
       return NextResponse.redirect(new URL("/billing", req.url));
     }
 

@@ -8,8 +8,10 @@ import { supabase } from "../../lib/supabaseClient";
 export default function LoginPage() {
   const router = useRouter();
 
+  const [companyCode, setCompanyCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -30,12 +32,34 @@ export default function LoginPage() {
     checkUser();
   }, [router]);
 
+  const inputStyle: React.CSSProperties = {
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid var(--border)",
+    background: "var(--surface-strong)",
+    color: "var(--foreground)",
+  };
+
   const handleLogin = async () => {
     try {
       setMessage("");
       setErrorMessage("");
 
-      if (!email.trim()) {
+      const normalizedCompanyCode = companyCode.trim().toLowerCase();
+      const normalizedEmail = email.trim();
+if (!normalizedCompanyCode) {
+  setErrorMessage("会社IDを入力してください。");
+  return;
+}
+
+if (!/^[a-z0-9]{3,12}$/.test(normalizedCompanyCode)) {
+  setErrorMessage(
+    "会社IDは半角英数字のみ・3〜12文字で入力してください。"
+  );
+  return;
+}
+
+      if (!normalizedEmail) {
         setErrorMessage("メールアドレスを入力してください。");
         return;
       }
@@ -48,7 +72,7 @@ export default function LoginPage() {
       setLoading(true);
 
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
       });
 
@@ -72,6 +96,61 @@ export default function LoginPage() {
 
       if (!user) {
         setErrorMessage("ログイン情報の取得に失敗しました。");
+        return;
+      }
+
+      const { data: organization, error: organizationError } = await supabase
+        .from("organizations")
+        .select("id")
+        .eq("company_code", normalizedCompanyCode)
+        .single();
+
+      if (organizationError || !organization) {
+        await supabase.auth.signOut();
+        setErrorMessage("会社IDが存在しません。");
+        return;
+      }
+
+      const { data: member, error: memberError } = await supabase
+        .from("organization_members")
+        .select("id")
+        .eq("organization_id", organization.id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (memberError || !member) {
+        await supabase.auth.signOut();
+        setErrorMessage("会社IDが一致していません。");
+        return;
+      }
+
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("organization_id", organization.id)
+        .single();
+
+      if (subscriptionError || !subscription) {
+        await supabase.auth.signOut();
+        setErrorMessage("契約情報が見つかりません。");
+        return;
+      }
+
+      const now = new Date();
+
+      const isDemo = subscription.demo_mode === true;
+
+      const isTrialValid =
+        subscription.plan_status === "trial" &&
+        subscription.trial_end_at &&
+        new Date(subscription.trial_end_at) > now &&
+        subscription.trial_case_used < subscription.trial_case_limit;
+
+      const isActive = subscription.plan_status === "active";
+
+      if (!isDemo && !isTrialValid && !isActive) {
+        await supabase.auth.signOut();
+        setErrorMessage("無料トライアルまたは契約期間が終了しています。");
         return;
       }
 
@@ -143,6 +222,20 @@ export default function LoginPage() {
         )}
 
         <div style={{ display: "grid", gap: 6 }}>
+          <label style={{ fontSize: 13, color: "var(--muted)" }}>会社ID</label>
+          <input
+  value={companyCode}
+  onChange={(e) => {
+    setCompanyCode(e.target.value.toLowerCase());
+    if (errorMessage) setErrorMessage("");
+  }}
+  placeholder="半角英数字のみ,小文字のみ,3〜12文字"
+  maxLength={12}
+  style={inputStyle}
+/>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
           <label style={{ fontSize: 13, color: "var(--muted)" }}>
             メールアドレス
           </label>
@@ -154,13 +247,7 @@ export default function LoginPage() {
               if (errorMessage) setErrorMessage("");
             }}
             placeholder="test@example.com"
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "var(--surface-strong)",
-              color: "var(--foreground)",
-            }}
+            style={inputStyle}
           />
         </div>
 
@@ -176,13 +263,7 @@ export default function LoginPage() {
               if (errorMessage) setErrorMessage("");
             }}
             placeholder="password"
-            style={{
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "var(--surface-strong)",
-              color: "var(--foreground)",
-            }}
+            style={inputStyle}
           />
         </div>
 
