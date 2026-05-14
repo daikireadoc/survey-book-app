@@ -16,22 +16,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        document.cookie = `user_email=${user.email}; path=/`;
-        document.cookie = `user_id=${user.id}; path=/`;
-        router.replace("/dashboard");
-      }
-    };
-
-    checkUser();
-  }, [router]);
-
   const inputStyle: React.CSSProperties = {
     padding: "12px 14px",
     borderRadius: 12,
@@ -40,6 +24,83 @@ export default function LoginPage() {
     color: "var(--foreground)",
   };
 
+  const checkSubscriptionActive = async (userId: string) => {
+    const { data: member, error: memberError } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", userId)
+      .single();
+
+    if (memberError || !member?.organization_id) {
+      return {
+        ok: false,
+        message: "会社情報が見つかりません。",
+      };
+    }
+
+    const { data: subscription, error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("organization_id", member.organization_id)
+      .single();
+
+    if (subscriptionError || !subscription) {
+      return {
+        ok: false,
+        message: "契約情報が見つかりません。",
+      };
+    }
+
+    const now = new Date();
+
+    const isDemo = subscription.demo_mode === true;
+
+    const isTrialValid =
+      subscription.plan_status === "trial" &&
+      subscription.trial_end_at &&
+      new Date(subscription.trial_end_at) > now &&
+      subscription.trial_case_used < subscription.trial_case_limit;
+
+    const isActive = subscription.plan_status === "active";
+
+    if (!isDemo && !isTrialValid && !isActive) {
+      return {
+        ok: false,
+        message: "無料トライアルまたは契約期間が終了しています。",
+      };
+    }
+
+    return {
+      ok: true,
+      message: "",
+    };
+  };
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const result = await checkSubscriptionActive(user.id);
+
+      if (!result.ok) {
+        await supabase.auth.signOut();
+        setErrorMessage(result.message);
+        return;
+      }
+
+      document.cookie = `user_email=${user.email}; path=/`;
+      document.cookie = `user_id=${user.id}; path=/`;
+
+      router.replace("/dashboard");
+    };
+
+    checkUser();
+  }, [router]);
+
   const handleLogin = async () => {
     try {
       setMessage("");
@@ -47,17 +108,16 @@ export default function LoginPage() {
 
       const normalizedCompanyCode = companyCode.trim().toLowerCase();
       const normalizedEmail = email.trim();
-if (!normalizedCompanyCode) {
-  setErrorMessage("会社IDを入力してください。");
-  return;
-}
 
-if (!/^[a-z0-9]{3,12}$/.test(normalizedCompanyCode)) {
-  setErrorMessage(
-    "会社IDは半角英数字のみ・3〜12文字で入力してください。"
-  );
-  return;
-}
+      if (!normalizedCompanyCode) {
+        setErrorMessage("会社IDを入力してください。");
+        return;
+      }
+
+      if (!/^[a-z0-9]{3,12}$/.test(normalizedCompanyCode)) {
+        setErrorMessage("会社IDは半角英数字のみ・3〜12文字で入力してください。");
+        return;
+      }
 
       if (!normalizedEmail) {
         setErrorMessage("メールアドレスを入力してください。");
@@ -124,33 +184,11 @@ if (!/^[a-z0-9]{3,12}$/.test(normalizedCompanyCode)) {
         return;
       }
 
-      const { data: subscription, error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("organization_id", organization.id)
-        .single();
+      const result = await checkSubscriptionActive(user.id);
 
-      if (subscriptionError || !subscription) {
+      if (!result.ok) {
         await supabase.auth.signOut();
-        setErrorMessage("契約情報が見つかりません。");
-        return;
-      }
-
-      const now = new Date();
-
-      const isDemo = subscription.demo_mode === true;
-
-      const isTrialValid =
-        subscription.plan_status === "trial" &&
-        subscription.trial_end_at &&
-        new Date(subscription.trial_end_at) > now &&
-        subscription.trial_case_used < subscription.trial_case_limit;
-
-      const isActive = subscription.plan_status === "active";
-
-      if (!isDemo && !isTrialValid && !isActive) {
-        await supabase.auth.signOut();
-        setErrorMessage("無料トライアルまたは契約期間が終了しています。");
+        setErrorMessage(result.message);
         return;
       }
 
@@ -224,15 +262,15 @@ if (!/^[a-z0-9]{3,12}$/.test(normalizedCompanyCode)) {
         <div style={{ display: "grid", gap: 6 }}>
           <label style={{ fontSize: 13, color: "var(--muted)" }}>会社ID</label>
           <input
-  value={companyCode}
-  onChange={(e) => {
-    setCompanyCode(e.target.value.toLowerCase());
-    if (errorMessage) setErrorMessage("");
-  }}
-  placeholder="半角英数字のみ,小文字のみ,3〜12文字"
-  maxLength={12}
-  style={inputStyle}
-/>
+            value={companyCode}
+            onChange={(e) => {
+              setCompanyCode(e.target.value.toLowerCase());
+              if (errorMessage) setErrorMessage("");
+            }}
+            placeholder="半角英数字のみ・3〜12文字"
+            maxLength={12}
+            style={inputStyle}
+          />
         </div>
 
         <div style={{ display: "grid", gap: 6 }}>
